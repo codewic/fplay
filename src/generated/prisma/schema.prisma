@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String        @id @default(auto()) @map("_id") @db.ObjectId
+  email                String        @unique
+  name                 String?
+  password             String
+  apiKey               String?       @unique
+  refreshToken         String?
+  notificationSettings Json?
+  apiSettings          Json?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  sessions             Session[]
+  templates            Template[]
+  userSettings         UserSettings?
+
+  @@map("users")
+}
+
+model Session {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String        @db.ObjectId
+  name           String?
+  sessionId      String        @unique
+  phoneNumber    String?
+  status         SessionStatus @default(PENDING)
+  qrCode         String?
+  pairingCode    String?
+  encryptedCreds String?
+  lastSeen       DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  botConfig BotConfig?
+
+  @@map("sessions")
+}
+
+model BotConfig {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId        String   @unique @db.ObjectId
+  name             String   @default("WhatsApp Bot")
+  welcomeMessage   String?
+  autoReply        Boolean  @default(false)
+  autoReplyMessage String?
+  webhookUrl       String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("bot_configs")
+}
+
+model Message {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId   String        @db.ObjectId
+  fromMe      Boolean
+  remoteJid   String
+  messageId   String        @unique
+  content     String?
+  messageType MessageType
+  status      MessageStatus @default(SENT)
+  timestamp   DateTime
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("messages")
+}
+
+enum SessionStatus {
+  PENDING
+  CONNECTING
+  CONNECTED
+  DISCONNECTED
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  AUDIO
+  VIDEO
+  STICKER
+  LOCATION
+  CONTACT
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Template {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  name      String
+  content   String
+  variables Json     @default("[]")
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("templates")
+}
+
+model UserSettings {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String   @unique @db.ObjectId
+  emailNotifications Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  sessionAlerts      Boolean  @default(true)
+  messageFailures    Boolean  @default(true)
+  dailyReports       Boolean  @default(false)
+  weeklyReports      Boolean  @default(true)
+  emailFrequency     String   @default("immediate")
+  quietHours         Boolean  @default(false)
+  quietStart         String   @default("22:00")
+  quietEnd           String   @default("08:00")
+  webhookUrl         String?
+  rateLimitPerMinute Int      @default(60)
+  timeoutSeconds     Int      @default(30)
+  retryAttempts      Int      @default(3)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
