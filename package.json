@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon src/server.ts",
     "build": "tsc",
-    "start": "node dist/src/server.js",
+    "start": "pnpm prisma generate && node dist/src/server.js",
     "start:dev": "tsx watch src/server.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -18,13 +18,12 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "deploy": "./scripts/deploy.sh"
+    "test:watch": "jest --watch"
   },
   "bugs": {
-    "url": "https://github.com/c99rahul/ts-node-express/issues"
+    "url": "https://github.com/codewic/wixtron-backend/issues"
   },
-  "homepage": "https://github.com/c99rahul/ts-node-express#readme",
+  "homepage": "https://github.com/codewic/wixtron-backend#readme",
   "keywords": [],
   "author": "",
   "license": "ISC",
