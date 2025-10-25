@@ -28,7 +28,7 @@ router.put(
 );
 router.post(
   "/send-message",
-  validateRequest(messageSchemas.sendAny),
+  // validateRequest(messageSchemas.sendAny),
   sendAnySessionMessage
 );
 

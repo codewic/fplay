@@ -195,7 +195,7 @@ export const sendAnySessionMessage = async (
   next: NextFunction
 ) => {
   try {
-    const userId = req.body.user!.id;
+    const userId = req.body?.user?.id;
     const body = req.body as any;
     const to: string = body.jid;
     const message: string | undefined = body.message;

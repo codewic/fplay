@@ -810,15 +810,24 @@ class WhatsAppService {
   private normalizeToJid(to: string): string {
     try {
       if (!to) throw new Error("Missing recipient");
+
       // If already a JID, return as is
       if (to.includes("@")) return to;
 
       // Remove all non-digits
       let digits = to.replace(/[^0-9]/g, "");
 
-      // Heuristic: if it's 10 digits and not starting with country code, assume US (1)
-      if (digits.length === 10 && !digits.startsWith("1")) {
+      // Handle Nigerian phone numbers
+      if (digits.length === 11 && digits.startsWith("0")) {
+        // Nigerian local format: 09032622630 -> 2349032622630
+        digits = "234" + digits.substring(1);
+      } else if (digits.length === 10 && !digits.startsWith("234")) {
+        // 10 digits without country code - could be Nigerian without leading 0
+        // or US number. Prioritize US for backward compatibility
         digits = "1" + digits;
+      } else if (digits.length === 13 && digits.startsWith("234")) {
+        // Already has Nigerian country code: 2349032622630
+        // Keep as is
       }
 
       if (digits.length < 10 || digits.length > 15) {
