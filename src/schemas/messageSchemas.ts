@@ -5,41 +5,53 @@ export const messageSchemas = {
     status: z.enum(["SENT", "DELIVERED", "READ", "FAILED"]),
   }),
 
-  getMessages: z.object({
-    page: z.number().int().min(1).optional(),
-    limit: z.number().int().min(1).max(100).optional(),
-    remoteJid: z.string().optional(),
-    status: z.enum(["SENT", "DELIVERED", "READ", "FAILED"]).optional(),
-    fromMe: z.boolean().optional(),
-    dateFrom: z.string().datetime().optional(),
-    dateTo: z.string().datetime().optional(),
-    messageType: z.string().optional(),
-  }).refine(
-    (data) => {
-      if (data.dateFrom && data.dateTo) {
-        return new Date(data.dateFrom) <= new Date(data.dateTo);
-      }
-      return true;
-    },
-    {
-      message: "From date must be before to date",
-      path: ["dateFrom"], // This will attach the error to the dateFrom field
-    }
-  ),
+  sendAny: z.object({
+    body: z.object({
+      to: z.string().min(10, "Phone number must be at least 10 characters"),
+      message: z.string().min(1, "Message cannot be empty"),
+      type: z.enum(["text", "image", "document"]).optional().default("text"),
+    }),
+  }),
 
-  dateFilter: z.object({
-    dateFrom: z.string().datetime().optional(),
-    dateTo: z.string().datetime().optional(),
-  }).refine(
-    (data) => {
-      if (data.dateFrom && data.dateTo) {
-        return new Date(data.dateFrom) <= new Date(data.dateTo);
+  getMessages: z
+    .object({
+      page: z.number().int().min(1).optional(),
+      limit: z.number().int().min(1).max(100).optional(),
+      remoteJid: z.string().optional(),
+      status: z.enum(["SENT", "DELIVERED", "READ", "FAILED"]).optional(),
+      fromMe: z.boolean().optional(),
+      dateFrom: z.string().datetime().optional(),
+      dateTo: z.string().datetime().optional(),
+      messageType: z.string().optional(),
+    })
+    .refine(
+      (data) => {
+        if (data.dateFrom && data.dateTo) {
+          return new Date(data.dateFrom) <= new Date(data.dateTo);
+        }
+        return true;
+      },
+      {
+        message: "From date must be before to date",
+        path: ["dateFrom"], // This will attach the error to the dateFrom field
       }
-      return true;
-    },
-    {
-      message: "From date must be before to date",
-      path: ["dateFrom"],
-    }
-  ),
+    ),
+
+  dateFilter: z
+    .object({
+      dateFrom: z.string().datetime().optional(),
+      dateTo: z.string().datetime().optional(),
+    })
+    .refine(
+      (data) => {
+        if (data.dateFrom && data.dateTo) {
+          return new Date(data.dateFrom) <= new Date(data.dateTo);
+        }
+        return true;
+      },
+      {
+        message: "From date must be before to date",
+        path: ["dateFrom"],
+      }
+    ),
 };

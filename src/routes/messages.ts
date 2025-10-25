@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getMessages,
   getMessagesByContact,
+  sendAnySessionMessage,
 } from "../controllers/messageController";
 import {
   updateMessageStatus,
@@ -14,12 +15,21 @@ import { messageSchemas } from "../schemas/messageSchemas";
 
 const router = Router();
 
-router.use(authenticate);
+// router.use(authenticate);
 
 router.get("/:sessionId", getMessages);
 router.get("/:sessionId/contact/:remoteJid", getMessagesByContact);
 router.get("/:sessionId/stats", getMessageStats);
 router.get("/:sessionId/contacts", getContactList);
-router.put("/:messageId/status", validateRequest(messageSchemas.updateStatus), updateMessageStatus);
+router.put(
+  "/:messageId/status",
+  validateRequest(messageSchemas.updateStatus),
+  updateMessageStatus
+);
+router.post(
+  "/send-message",
+  validateRequest(messageSchemas.sendAny),
+  sendAnySessionMessage
+);
 
 export default router;
