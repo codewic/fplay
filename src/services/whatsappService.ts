@@ -248,6 +248,7 @@ class WhatsAppService {
         connectTimeoutMs: 60000,
         generateHighQualityLinkPreview: false,
         version,
+        syncFullHistory: false,
       });
       logger.info(`WhatsApp socket created for session: ${sessionId}`);
 
