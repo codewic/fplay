@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { messageService } from "../services/messageService";
 import { sessionService } from "../services/sessionService";
+import { whatsappService } from "../services/whatsappService";
 import { AuthRequest } from "../types";
 import { AppError } from "../utils/errors";
 import { MessageStatus } from "../generated/prisma";
@@ -63,14 +64,14 @@ export const getMessages = async (
 ) => {
   try {
     const { sessionId } = req.params;
-    const { 
-      page = "1", 
-      limit = "50", 
-      remoteJid, 
-      status, 
+    const {
+      page = "1",
+      limit = "50",
+      remoteJid,
+      status,
       fromMe,
       dateFrom,
-      dateTo 
+      dateTo,
     } = req.query;
     const userId = req.user!.id;
 
@@ -84,7 +85,7 @@ export const getMessages = async (
       sessionId,
       ...(remoteJid && { remoteJid: remoteJid as string }),
       ...(status && { status: status as MessageStatus }),
-      ...(fromMe !== undefined && { fromMe: fromMe === 'true' }),
+      ...(fromMe !== undefined && { fromMe: fromMe === "true" }),
       ...(dateFrom && { dateFrom: new Date(dateFrom as string) }),
       ...(dateTo && { dateTo: new Date(dateTo as string) }),
     };
@@ -179,6 +180,70 @@ export const getMessagesByContact = async (
       success: true,
       data: result.data,
       pagination: result.pagination,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Send a message using any active WhatsApp session for the authenticated user
+ */
+export const sendAnySessionMessage = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.body?.user?.id;
+    const body = req.body as any;
+    const to: string = body.jid;
+    const message: string | undefined = body.message;
+    const type: string = body.type ?? "text";
+    const otp: string | undefined = body.otp;
+    const brand: string | undefined = body.brand;
+
+    // Get user's active sessions from DB
+    const active = await sessionService.getActiveSessions();
+    // const userActive = active.filter((s) => s.userId === userId);
+
+    // if (userActive.length === 0) {
+    //   throw new AppError("No active sessions available", 404);
+    // }
+
+    // Pick the first connected session in memory
+    const connected = active.find(
+      (s) => whatsappService.getSessionStatus(s.sessionId) === "connected"
+    );
+
+    if (!connected) {
+      throw new AppError("No connected sessions available", 400);
+    }
+
+    const messageId = otp
+      ? await whatsappService.sendOfficialOtpMessage(
+          connected.sessionId,
+          to,
+          otp,
+          brand
+        )
+      : await whatsappService.sendMessage(
+          connected.sessionId,
+          to,
+          message!,
+          type
+        );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        messageId,
+        sessionId: connected.sessionId,
+        to,
+        message: otp ? `OTP: ${otp}` : message,
+        type: otp ? "text" : type,
+        timestamp: new Date(),
+      },
     });
   } catch (error) {
     next(error);

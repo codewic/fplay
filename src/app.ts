@@ -5,6 +5,7 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
+import path from "path";
 
 import routes from "./routes";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -49,6 +50,9 @@ app.use(
 // Swagger documentation
 const specs = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
+
+// Static frontend
+app.use(express.static(path.join(process.cwd(), "public")));
 
 // Routes
 app.use("/api/v1", routes);

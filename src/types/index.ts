@@ -1,4 +1,5 @@
 import { Request } from "express";
+import { WASocket } from "@whiskeysockets/baileys";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -33,7 +34,7 @@ export interface SendMessageResponse {
 }
 
 export interface BaileysSession {
-  sock: any;
+  sock: WASocket;
   qr?: string;
   pairingCode?: string;
   phoneNumber?: string;

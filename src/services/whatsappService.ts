@@ -237,7 +237,7 @@ class WhatsAppService {
 
       const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: false,
+        printQRInTerminal: true,
         logger: baileysLogger,
         browser: ["WixTron Beta", "Safari (linux)", "1.0.0"],
         defaultQueryTimeoutMs: 60000,
@@ -435,7 +435,8 @@ class WhatsAppService {
                 );
               }
             }
-          }  if (connection === "connecting") {
+          }
+          if (connection === "connecting") {
             session.status = "connecting";
             socketService.emitSessionStatus(sessionId, userId, "connecting");
           } else if (connection === "open") {
@@ -705,11 +706,14 @@ class WhatsAppService {
         throw new Error("Session not connected");
       }
 
+      // Normalize recipient to a valid WhatsApp JID if a raw phone number was provided
+      const toJid = this.normalizeToJid(to);
+
       let result;
 
       switch (type) {
         case "text":
-          result = await session.sock.sendMessage(to, { text: message });
+          result = await session.sock.sendMessage(toJid, { text: message });
           break;
         case "image":
           // Handle image messages (requires file buffer)
@@ -718,7 +722,7 @@ class WhatsAppService {
           // Handle document messages (requires file buffer)
           throw new Error("Document messages not implemented");
         default:
-          result = await session.sock.sendMessage(to, { text: message });
+          result = await session.sock.sendMessage(toJid, { text: message });
       }
 
       // Save sent message to database
@@ -727,7 +731,7 @@ class WhatsAppService {
           await messageService.saveMessage({
             sessionId,
             fromMe: true,
-            remoteJid: to,
+            remoteJid: toJid,
             messageId: result.key.id!,
             content: message,
             messageType: "TEXT",
@@ -742,6 +746,99 @@ class WhatsAppService {
     } catch (error) {
       logger.error(`Error sending message on session ${sessionId}:`, error);
       throw error;
+    }
+  }
+
+  async sendOfficialOtpMessage(
+    sessionId: string,
+    to: string,
+    code: string,
+    brand: string = process.env.BRAND_NAME || "WixTron",
+    supportUrl: string = process.env.SUPPORT_URL ||
+      "https://example.com/support"
+  ): Promise<string> {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.status !== "connected") {
+      throw new Error("Session not connected");
+    }
+    const toJid = this.normalizeToJid(to);
+
+    const header = `🔒 ${brand} Verification`;
+    const body = `${header}\n\nUse this one-time code to continue:\n\n\`\`\`${code}\`\`\`\n\nThis code expires in 10 minutes. Do not share it with anyone.`;
+    const footer = `${brand} • Help: ${supportUrl}`;
+
+    // const content: any = {
+    //   text: body,
+    //   footer,
+    //   buttons: [
+    //     {
+    //       buttonId: `copy_${code}`,
+    //       buttonText: { displayText: `Copy ${code}` },
+    //       type: 1,
+    //     },
+    //   ],
+    //   headerType: 1,
+    // } ;
+
+    const result = await session.sock.sendMessage(toJid, {
+      text: body,
+      body: body,
+      footer,
+      buttonReply: {
+        id: `copy_${code}`,
+        displayText: `Copy ${code}`,
+        index: 1,
+      },
+    });
+
+    try {
+      // await messageService.saveMessage({
+      //   sessionId,
+      //   fromMe: true,
+      //   remoteJid: toJid,
+      //   messageId: result.key.id!,
+      //   content: `${brand} OTP: ${code}`,
+      //   messageType: "TEXT",
+      //   timestamp: new Date(),
+      // });
+    } catch (saveError) {
+      logger.error(`Error saving OTP message to DB:`, saveError);
+    }
+
+    return result.key.id!;
+  }
+
+  private normalizeToJid(to: string): string {
+    try {
+      if (!to) throw new Error("Missing recipient");
+
+      // If already a JID, return as is
+      if (to.includes("@")) return to;
+
+      // Remove all non-digits
+      let digits = to.replace(/[^0-9]/g, "");
+
+      // Handle Nigerian phone numbers
+      if (digits.length === 11 && digits.startsWith("0")) {
+        // Nigerian local format: 09032622630 -> 2349032622630
+        digits = "234" + digits.substring(1);
+      } else if (digits.length === 10 && !digits.startsWith("234")) {
+        // 10 digits without country code - could be Nigerian without leading 0
+        // or US number. Prioritize US for backward compatibility
+        digits = "1" + digits;
+      } else if (digits.length === 13 && digits.startsWith("234")) {
+        // Already has Nigerian country code: 2349032622630
+        // Keep as is
+      }
+
+      if (digits.length < 10 || digits.length > 15) {
+        throw new Error("Invalid phone number format");
+      }
+
+      return `${digits}@s.whatsapp.net`;
+    } catch (e) {
+      logger.warn(`Failed to normalize recipient '${to}', using raw value`);
+      return to;
     }
   }
 
